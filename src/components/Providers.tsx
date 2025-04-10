@@ -3,9 +3,10 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
+import React from "react";
 import { ThemeProvider } from "next-themes";
 
-export function Providers({ children }) {
+export function Providers({ children }: { children: React.ReactNode }) {
   // Create a React Query client
   const [queryClient] = useState(() => new QueryClient());
 

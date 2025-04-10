@@ -5,9 +5,30 @@ import { useForm, FormProvider, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { Sun, Moon } from "lucide-react";
+import { toast } from "sonner";
+
+// Define form data types
+type Step1Data = {
+  fullName: string;
+  email: string;
+  phone: string;
+};
+
+type Step2Data = {
+  street: string;
+  city: string;
+  zip: string;
+};
+
+type Step3Data = {
+  username: string;
+  password: string;
+  confirmPassword: string;
+};
+
+type FormData = Step1Data & Step2Data & Step3Data;
 
 // Validation schemas
 const Step1Schema = z.object({
@@ -38,15 +59,15 @@ const Step3Schema = z
     path: ["confirmPassword"],
   });
 
-// Combined schema
-const FormSchema = z.object({
-  ...Step1Schema.shape,
-  ...Step2Schema.shape,
-  ...Step3Schema.shape,
-});
+// Form steps with typing
+interface Step {
+  id: string;
+  name: string;
+  schema: z.ZodSchema;
+  fields: (keyof FormData)[];
+}
 
-// Form steps
-const steps = [
+const steps: Step[] = [
   {
     id: "personal",
     name: "Personal Info",
@@ -68,7 +89,9 @@ const steps = [
 ];
 
 // Mock API submission function
-const submitFormData = async (data) => {
+const submitFormData = async (
+  data: FormData
+): Promise<{ success: boolean; data: FormData }> => {
   // Simulate API call
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -78,11 +101,23 @@ const submitFormData = async (data) => {
 };
 
 // Input Component
-const FormInput = ({ name, label, type = "text", placeholder }) => {
+interface FormInputProps {
+  name: keyof FormData;
+  label: string;
+  type?: string;
+  placeholder?: string;
+}
+
+const FormInput = ({
+  name,
+  label,
+  type = "text",
+  placeholder,
+}: FormInputProps) => {
   const {
     register,
     formState: { errors },
-  } = useFormContext();
+  } = useFormContext<FormData>();
 
   return (
     <div className="mb-4">
@@ -102,7 +137,7 @@ const FormInput = ({ name, label, type = "text", placeholder }) => {
       />
       {errors[name] && (
         <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-          {errors[name].message}
+          {errors[name]?.message as string}
         </p>
       )}
     </div>
@@ -110,7 +145,11 @@ const FormInput = ({ name, label, type = "text", placeholder }) => {
 };
 
 // Step progress bar component
-const StepProgress = ({ currentStep }) => {
+interface StepProgressProps {
+  currentStep: number;
+}
+
+const StepProgress = ({ currentStep }: StepProgressProps) => {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between relative">
@@ -174,10 +213,10 @@ const ThemeSwitcher = () => {
 
 export default function MultiStepForm() {
   const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<Partial<FormData>>({});
 
   // Form setup with the current step's schema
-  const methods = useForm({
+  const methods = useForm<FormData>({
     resolver: zodResolver(steps[step].schema),
     defaultValues: formData,
     mode: "onChange",
@@ -188,13 +227,13 @@ export default function MultiStepForm() {
     mutationFn: submitFormData,
     onSuccess: (data) => {
       console.log("Form submitted successfully:", data);
-      alert("Form submitted successfully!");
+      toast("Form submitted successfully!");
     },
   });
 
   // Handle next step
-  const handleNext = async (data) => {
-    const currentStepData = {};
+  const handleNext = async (data: Partial<FormData>) => {
+    const currentStepData = {} as Partial<FormData>;
     steps[step].fields.forEach((field) => {
       currentStepData[field] = data[field];
     });
@@ -217,11 +256,11 @@ export default function MultiStepForm() {
   };
 
   // Handle form submission
-  const onSubmit = async (data) => {
+  const onSubmit = async (data: Partial<FormData>) => {
     const finalData = {
       ...formData,
       ...data,
-    };
+    } as FormData;
 
     // Submit data using mutation
     mutation.mutate(finalData);
